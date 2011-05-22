@@ -16,6 +16,7 @@
  */
 #include <makestuff.h>
 #include <libusbwrap.h>
+#include <usb.h>
 #include <liberror.h>
 #include <vendorCommands.h>
 #include "libsync.h"
@@ -27,7 +28,7 @@
 #define MAX_TRIES 10
 
 static SyncStatus trySync(
-	UsbDeviceHandle *deviceHandle, int outEndpoint, int inEndpoint, const char **error
+	struct usb_dev_handle *deviceHandle, int outEndpoint, int inEndpoint, const char **error
 ) WARN_UNUSED_RESULT;
 
 // -------------------------------------------------------------------------------------------------
@@ -37,7 +38,7 @@ static SyncStatus trySync(
 // Sync with the device
 //
 SyncStatus syncBulkEndpoints(
-	UsbDeviceHandle *deviceHandle, SyncMode syncMode, const char **error)
+	struct usb_dev_handle *deviceHandle, SyncMode syncMode, const char **error)
 {
 	SyncStatus returnCode, sStatus;
 	int uStatus;
@@ -100,7 +101,7 @@ cleanup:
 // -------------------------------------------------------------------------------------------------
 
 static SyncStatus trySync(
-	UsbDeviceHandle *deviceHandle, int outEndpoint, int inEndpoint, const char **error)
+	struct usb_dev_handle *deviceHandle, int outEndpoint, int inEndpoint, const char **error)
 {
 	SyncStatus returnCode;
 	const uint32 hackLower = 0x6861636B;
