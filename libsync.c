@@ -14,6 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef SYNC_DEBUG
+	#include <stdio.h>
+#endif
 #include <makestuff.h>
 #include <libusbwrap.h>
 #include <usb.h>
@@ -111,25 +114,57 @@ static SyncStatus trySync(
 		uint32 lword;
 		char bytes[512];
 	} u;
-	uint8 count = 0;
+	uint8 count = 2, i;
 	do {
 		uStatus = usb_bulk_read(deviceHandle, USB_ENDPOINT_IN | inEndpoint, u.bytes, 512, 100);
-		//printf("CLEAN: Read %d bytes, starting with 0x%08lX\n", uStatus, u.lword);
+		#ifdef SYNC_DEBUG
+			if ( uStatus >= 0 ) {
+				printf("CLEAN: Read %d bytes, starting with 0x%08lX\n", uStatus, u.lword);
+			} else {
+				printf("CLEAN: ReturnCode %d\n", uStatus);
+			}
+		#endif
 	} while ( uStatus >= 0 );
-	u.lword = 0xDEADDEAD;
-	usb_bulk_write(deviceHandle, USB_ENDPOINT_OUT | outEndpoint, u.bytes, 4, 100);
-	usb_bulk_write(deviceHandle, USB_ENDPOINT_OUT | outEndpoint, u.bytes, 4, 100);
-	u.lword = hackLower;
-	usb_bulk_write(deviceHandle, USB_ENDPOINT_OUT | outEndpoint, u.bytes, 4, 100);
+	do {
+		u.lword = 0xDEADDEAD;
+		for ( i = 0; i < count; i++ ) {
+			usb_bulk_write(deviceHandle, USB_ENDPOINT_OUT | outEndpoint, u.bytes, 4, 100);
+		}
+		u.lword = hackLower;
+		usb_bulk_write(deviceHandle, USB_ENDPOINT_OUT | outEndpoint, u.bytes, 4, 100);
+		uStatus = usb_bulk_read(deviceHandle, USB_ENDPOINT_IN | inEndpoint, u.bytes, 4, 100);
+		#ifdef SYNC_DEBUG
+			if ( uStatus >= 0 ) {
+				printf("SYNC(%d): Read %d bytes, starting with 0x%08lX\n", count, uStatus, u.lword);
+			} else {
+				printf("SYNC(%d): ReturnCode %d\n", count, uStatus);
+			}
+		#endif
+		count++;
+	} while ( (uStatus < 0 || u.lword != 0xDEADDEAD) && count < MAX_TRIES );
+	if ( u.lword != 0xDEADDEAD ) {
+		errRender(
+			error,
+			"syncBulkEndpoints(): Sync of EP%dOUT->EP%dIN failed after %d fill attempts: %s",
+			outEndpoint, inEndpoint, count, usb_strerror());
+		FAIL(SYNC_FAILED);
+	}
+	count = 0;
 	do {
 		uStatus = usb_bulk_read(deviceHandle, USB_ENDPOINT_IN | inEndpoint, u.bytes, 4, 100);
-		//printf("WAIT: Read %d bytes, starting with 0x%08lX\n", uStatus, u.lword);
+		#ifdef SYNC_DEBUG
+			if ( uStatus >= 0 ) {
+				printf("WAIT: Read %d bytes, starting with 0x%08lX\n", uStatus, u.lword);
+			} else {
+				printf("WAIT: ReturnCode %d\n", uStatus);
+			}
+		#endif
 		count++;
 	} while ( (u.lword != hackUpper || uStatus < 0) && count < MAX_TRIES );
 	if ( uStatus < 0 ) {
 		errRender(
 			error,
-			"syncBulkEndpoints(): Sync of EP%dOUT->EP%dIN failed after %d attempts: %s",
+			"syncBulkEndpoints(): Sync of EP%dOUT->EP%dIN failed after %d drain attempts: %s",
 			outEndpoint, inEndpoint, count, usb_strerror());
 		FAIL(SYNC_FAILED);
 	}
