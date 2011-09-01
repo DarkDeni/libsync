@@ -118,13 +118,13 @@ static SyncStatus trySync(
 	do {
 		uStatus = usb_bulk_read(deviceHandle, USB_ENDPOINT_IN | inEndpoint, u.bytes, 512, 100);
 		#ifdef SYNC_DEBUG
-			if ( uStatus >= 0 ) {
+			if ( uStatus > 0 ) {
 				printf("CLEAN: Read %d bytes, starting with 0x%08lX\n", uStatus, u.lword);
 			} else {
 				printf("CLEAN: ReturnCode %d\n", uStatus);
 			}
 		#endif
-	} while ( uStatus >= 0 );
+	} while ( uStatus > 0 );
 	do {
 		u.lword = 0xDEADDEAD;
 		for ( i = 0; i < count; i++ ) {
